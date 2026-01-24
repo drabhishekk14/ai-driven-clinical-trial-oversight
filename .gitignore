@@ -1,0 +1,19 @@
+# ---- R Session files ----
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# ---- Credentials ----
+.Renviron
+
+# ---- Data (not versioned) ----
+data/raw/
+data/interim/
+
+# ---- Outputs ----
+outputs/
+
+# ---- renv ----
+renv/
+
