@@ -1,6 +1,5 @@
 /* ============================================================
-   AACT CAPSTONE EXTRACTION
-   Mirrors IT_540 Final Project logic
+   AACT DATA EXTRACTION
    Schema: ctgov
    Unit: one row per NCT ID (after aggregation)
    ============================================================ */
