@@ -1,14 +1,26 @@
+# ============================================================
+# AACT extraction
+# ============================================================
+
 source("R/connect_aact.R")
 
 con <- connect_aact()
 
-# Placeholder query (will be expanded)
-query <- "SELECT nct_id, study_type FROM studies LIMIT 10;"
+sql <- readLines("sql/aact_extract.sql")
+sql <- paste(sql, collapse = "\n")
 
-raw_data <- DBI::dbGetQuery(con, query)
+aact_raw <- DBI::dbGetQuery(con, sql)
 
 DBI::dbDisconnect(con)
 
-# Save raw extract
-dir.create("data/raw", showWarnings = FALSE)
-write.csv(raw_data, "data/raw/aact_sample.csv", row.names = FALSE)
+if (!dir.exists("data/raw")) {
+  dir.create("data/raw", recursive = TRUE)
+}
+
+write.csv(
+  aact_raw,
+  "data/raw/aact_capstone_raw.csv",
+  row.names = FALSE
+)
+
+cat("AACT extract complete:", nrow(aact_raw), "rows\n")
