@@ -1,0 +1,3 @@
+-- AACT data extraction
+-- Purpose: Extract core trial metadata for reporting timeliness analysis
+-- Source: aact.studies and related tables
