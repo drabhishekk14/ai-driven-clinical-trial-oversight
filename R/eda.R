@@ -18,8 +18,19 @@
 # ============================================================
 
 # ---- Libraries ----
+
 library(dplyr)
 library(ggplot2)
+# ============================================================
+
+# ---- Conditional Output directories creation ----
+
+if (!dir.exists("outputs/figures")) {
+  dir.create("outputs/figures", recursive = TRUE)
+}
+if (!dir.exists("outputs/tables")) {
+  dir.create("outputs/tables", recursive = TRUE)
+}
 
 # ============================================================
 # 1. LOAD FEATURE-ENGINEERED DATA
@@ -44,6 +55,23 @@ cat("Number of features:", ncol(df), "\n")
 # ---- Reporting lag (continuous) ----
 summary(df$reporting_lag_days)
 
+# ---- Save Table 4.1: Outcome Summary ----
+outcome_summary <- data.frame(
+  Metric = c("Min", "Median", "Mean", "Max"),
+  Value = c(
+    min(df$reporting_lag_days),
+    median(df$reporting_lag_days),
+    mean(df$reporting_lag_days),
+    max(df$reporting_lag_days)
+  )
+)
+
+write.csv(
+  outcome_summary,
+  "outputs/tables/Table_4_1_reporting_lag_summary.csv",
+  row.names = FALSE
+)
+
 # ---- Delayed vs on-time (binary) ----
 table(df$delayed_reporting)
 prop.table(table(df$delayed_reporting))
@@ -56,7 +84,7 @@ prop.table(table(df$delayed_reporting))
 # 4. VISUALIZE REPORTING LAG
 # ============================================================
 
-ggplot(df, aes(x = reporting_lag_days)) +
+p1 <- ggplot(df, aes(x = reporting_lag_days)) +
   geom_histogram(
     bins = 50,
     fill = "steelblue",
@@ -69,6 +97,12 @@ ggplot(df, aes(x = reporting_lag_days)) +
   ) +
   theme_minimal()
 
+ggsave(
+  "outputs/figures/Figure_4_1_reporting_lag_distribution.png",
+  p1,
+  width = 8,
+  height = 5
+)
 # ============================================================
 # 5. KEY PREDICTOR SUMMARIES
 # ============================================================
@@ -94,7 +128,7 @@ table(df$multinational)
 # ============================================================
 
 # ---- Delay rate by sponsor class ----
-df %>%
+sponsor_class_delay <- df %>%
   group_by(agency_class) %>%
   summarise(
     n = n(),
@@ -102,19 +136,47 @@ df %>%
   ) %>%
   arrange(desc(delay_rate))
 
+write.csv(
+  sponsor_class_delay,
+  "outputs/tables/Table_4_2_delay_rate_by_phase.csv",
+  row.names = FALSE
+)
 # ---- Delay rate by phase ----
-df %>%
+phase_delay <- df %>%
   group_by(phase) %>%
   summarise(
     n = n(),
     delay_rate = mean(delayed_reporting)
   )
 
+write.csv(
+  phase_delay,
+  "outputs/tables/Table_4_2_delay_rate_by_phase.csv",
+  row.names = FALSE
+)
+
+# ---- Figure 4.3: Reporting Lag vs Log Enrollment (TOCI proxy) ----
+p3 <- ggplot(df, aes(x = log_enrollment, y = reporting_lag_days)) +
+  geom_point(alpha = 0.1) +
+  labs(
+    title = "Reporting Lag vs Log Enrollment",
+    x = "Log Enrollment",
+    y = "Reporting Lag (Days)"
+  ) +
+  theme_minimal()
+
+ggsave(
+  "outputs/figures/Figure_4_3_reporting_lag_vs_enrollment.png",
+  p3,
+  width = 8,
+  height = 5
+)
+
 # ============================================================
-# 7. VISUAL SIGNAL CHECK (OPTIONAL)
+# 7. VISUAL SIGNAL CHECK
 # ============================================================
 
-ggplot(df, aes(x = agency_class, y = reporting_lag_days)) +
+p2 <- ggplot(df, aes(x = agency_class, y = reporting_lag_days)) +
   geom_boxplot(outlier.alpha = 0.1) +
   coord_cartesian(ylim = c(0, 1500)) +
   labs(
@@ -124,6 +186,12 @@ ggplot(df, aes(x = agency_class, y = reporting_lag_days)) +
   ) +
   theme_minimal()
 
+ggsave(
+  "outputs/figures/Figure_4_2_reporting_lag_by_sponsor.png",
+  p2,
+  width = 8,
+  height = 5
+)
 # ============================================================
 # 8. EDA CONCLUSION CHECKPOINT
 # ============================================================

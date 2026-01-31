@@ -20,6 +20,14 @@ This repository supports research into AI/ML-driven oversight of clinical trials
 - Raw data excluded from version control
 - Modular scripts for extraction, cleaning, and modeling
 
+The analysis pipeline should be executed in the following order:
+
+1. connect_aact.R – Configure AACT database connection
+2. extract_aact.R – Extract raw registry data
+3. feature_engineering.R – Clean and engineer features
+4. eda.R – Perform exploratory data analysis and generate figures/tables
+5. analysis_modeling_pipeline.R – Train models and evaluate performance
+
 ## Status
 Active development.
 

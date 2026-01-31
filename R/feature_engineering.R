@@ -12,8 +12,12 @@
 #   - Engineers interpretable predictors
 #   - Produces a clean, model-ready interim dataset
 #
-# This script corresponds to the "Data Preparation" and
-# "Variable Construction" sections of the capstone methodology.
+#
+# NOTE:
+# The engineered features in this script directly support:
+#   - Exploratory Data Analysis
+#   - Predictive Modeling
+#   - Construction of composite indicators
 #
 # Output:
 #   data/interim/aact_features.csv
