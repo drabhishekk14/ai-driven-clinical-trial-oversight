@@ -28,6 +28,9 @@ The analysis pipeline should be executed in the following order:
 4. eda.R – Perform exploratory data analysis and generate figures/tables
 5. analysis_modeling_pipeline.R – Train models and evaluate performance
 
+## Documentation
+- Quick Reference Guide to Analytical Methods: `docs/Quick_Reference_Analytical_Methods.md`
+
 ## Status
 Active development.
 
