@@ -17,3 +17,5 @@ outputs/
 # ---- renv ----
 renv/
 
+# ---- windows file ----
+desktop.ini
