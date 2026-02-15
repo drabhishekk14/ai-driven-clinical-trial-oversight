@@ -1,81 +1,83 @@
 /* ============================================================
-   AACT DATA EXTRACTION
-   Schema: ctgov
-   Unit: one row per NCT ID (after aggregation)
+   AACT DATA EXTRACTION — ONE ROW PER NCT ID
+   WITH COVID FLAG
    ============================================================ */
 
 SELECT
     s.nct_id,
 
-    /* ---- Core study fields ---- */
+    /* Core study fields */
     s.phase,
     s.enrollment,
     s.primary_completion_date,
     s.results_first_submitted_date,
 
-    /* ---- Design ---- */
+    /* COVID flag */
+    CASE
+        WHEN s.primary_completion_date 
+             BETWEEN '2020-03-01' AND '2022-12-31'
+        THEN 1 ELSE 0
+    END AS covid_period,
+
+    /* Design */
     d.masking,
     d.allocation,
 
-    /* ---- Sponsor ---- */
+    /* Sponsor */
     sp.agency_class,
 
-    /* ---- Intervention ---- */
+    /* Intervention (single per study) */
     i.intervention_type,
 
-    /* ---- Geography ---- */
-    c.name AS country,
+    /* Geography (count countries) */
+    c.num_countries,
 
-    /* ---- Outcomes (count) ---- */
+    /* Outcomes */
     oc.num_outcomes,
 
-    /* ---- Eligibility ---- */
+    /* Eligibility */
     e.gender,
     e.healthy_volunteers,
 
-    /* ---- Responsible party ---- */
+    /* Responsible party */
     rp.responsible_party_type
 
 FROM ctgov.studies s
 
-/* designs */
 LEFT JOIN ctgov.designs d
     ON s.nct_id = d.nct_id
 
-/* sponsors */
 LEFT JOIN ctgov.sponsors sp
     ON s.nct_id = sp.nct_id
    AND sp.lead_or_collaborator = 'lead'
 
-/* interventions (first per study) */
 LEFT JOIN (
-    SELECT nct_id, intervention_type
+    SELECT nct_id,
+           MIN(intervention_type) AS intervention_type
     FROM ctgov.interventions
-    GROUP BY nct_id, intervention_type
+    GROUP BY nct_id
 ) i
     ON s.nct_id = i.nct_id
 
-/* countries (first per study) */
 LEFT JOIN (
-    SELECT nct_id, name
+    SELECT nct_id,
+           COUNT(DISTINCT name) AS num_countries
     FROM ctgov.countries
-    GROUP BY nct_id, name
+    GROUP BY nct_id
 ) c
     ON s.nct_id = c.nct_id
 
-/* outcomes (count per study) */
 LEFT JOIN (
-    SELECT nct_id, COUNT(*) AS num_outcomes
+    SELECT nct_id,
+           COUNT(*) AS num_outcomes
     FROM ctgov.outcomes
     GROUP BY nct_id
 ) oc
     ON s.nct_id = oc.nct_id
 
-/* eligibilities */
 LEFT JOIN ctgov.eligibilities e
     ON s.nct_id = e.nct_id
 
-/* responsible parties */
 LEFT JOIN ctgov.responsible_parties rp
     ON s.nct_id = rp.nct_id
 
