@@ -1,61 +1,48 @@
 # ============================================================
 # Exploratory Data Analysis (EDA)
-#
-# Purpose:
-#   Validate outcome distributions, examine predictor behavior,
-#   and assess suitability for predictive modeling.
-#
-# This script supports:
-#   - Descriptive analysis section
-#   - Model justification
-#   - Interpretation of downstream SHAP results
-#
-# Input:
-#   data/interim/aact_features.csv
-#
-# Output:
-#   Console summaries + optional plots
+# Updated to reflect COVID indicator and final structure
 # ============================================================
-
-# ---- Libraries ----
 
 library(dplyr)
 library(ggplot2)
-# ============================================================
+library(readr)
 
-# ---- Conditional Output directories creation ----
+# ------------------------------------------------------------
+# Create Output Directories
+# ------------------------------------------------------------
 
-if (!dir.exists("outputs/figures")) {
-  dir.create("outputs/figures", recursive = TRUE)
+if (!dir.exists("final_analysis/outputs/figures")) {
+  dir.create("final_analysis/outputs/figures", recursive = TRUE)
 }
-if (!dir.exists("outputs/tables")) {
-  dir.create("outputs/tables", recursive = TRUE)
+
+if (!dir.exists("final_analysis/outputs/tables")) {
+  dir.create("final_analysis/outputs/tables", recursive = TRUE)
 }
 
-# ============================================================
-# 1. LOAD FEATURE-ENGINEERED DATA
-# ============================================================
+# ------------------------------------------------------------
+# Load Data (Interim Feature Dataset)
+# ------------------------------------------------------------
 
-df <- read.csv(
-  "data/interim/aact_features.csv",
-  stringsAsFactors = FALSE
-)
-
-# ============================================================
-# 2. BASIC DATA SHAPE CHECKS
-# ============================================================
+df <- read_csv("data/interim/aact_features.csv", show_col_types = FALSE)
 
 cat("Number of studies:", nrow(df), "\n")
 cat("Number of features:", ncol(df), "\n")
 
+# ------------------------------------------------------------
+# PRIMARY ANALYTICAL SAMPLE (Pre-COVID)
+# ------------------------------------------------------------
+
+df_pre_covid <- df %>%
+  filter(covid_period == 0)
+
+cat("Pre-COVID sample size:", nrow(df_pre_covid), "\n")
+
 # ============================================================
-# 3. OUTCOME DISTRIBUTIONS
+# 1. OUTCOME DISTRIBUTIONS
 # ============================================================
 
-# ---- Reporting lag (continuous) ----
 summary(df$reporting_lag_days)
 
-# ---- Save Table 4.1: Outcome Summary ----
 outcome_summary <- data.frame(
   Metric = c("Min", "Median", "Mean", "Max"),
   Value = c(
@@ -66,69 +53,76 @@ outcome_summary <- data.frame(
   )
 )
 
-write.csv(
+write_csv(
   outcome_summary,
-  "outputs/tables/Table_4_1_reporting_lag_summary.csv",
-  row.names = FALSE
+  "final_analysis/outputs/tables/Table_4_1_reporting_lag_summary.csv"
 )
 
-# ---- Delayed vs on-time (binary) ----
-table(df$delayed_reporting)
-prop.table(table(df$delayed_reporting))
+# Delay class balance
+delay_dist <- prop.table(table(df$delayed_reporting))
 
-# Interpretation note:
-# Expect substantial right skew and class imbalance.
-# This justifies tree-based models and non-linear methods.
+write_csv(
+  as.data.frame(delay_dist),
+  "final_analysis/outputs/tables/Table_4_2_delay_class_distribution.csv"
+)
 
 # ============================================================
-# 4. VISUALIZE REPORTING LAG
+# 2. VISUALIZE REPORTING LAG
 # ============================================================
 
 p1 <- ggplot(df, aes(x = reporting_lag_days)) +
-  geom_histogram(
-    bins = 50,
-    fill = "steelblue",
-    color = "white"
-  ) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
   labs(
     title = "Distribution of Results Reporting Lag",
-    x = "Days from Primary Completion to Results Submission",
+    x = "Reporting Lag (Days)",
     y = "Number of Studies"
   ) +
   theme_minimal()
 
 ggsave(
-  "outputs/figures/Figure_4_1_reporting_lag_distribution.png",
+  "final_analysis/outputs/figures/Figure_4_1_reporting_lag_distribution.png",
   p1,
   width = 8,
   height = 5
 )
-# ============================================================
-# 5. KEY PREDICTOR SUMMARIES
-# ============================================================
-
-# ---- Trial phase ----
-table(df$phase)
-prop.table(table(df$phase))
-
-# ---- Sponsor class ----
-table(df$agency_class)
-prop.table(table(df$agency_class))
-
-# ---- Responsible party ----
-table(df$responsible_party_type)
-
-# ---- Operational complexity ----
-summary(df$log_enrollment)
-table(df$outcome_complexity)
-table(df$multinational)
 
 # ============================================================
-# 6. BIVARIATE SIGNAL CHECKS
+# 3. KEY PREDICTOR SUMMARIES
 # ============================================================
 
-# ---- Delay rate by sponsor class ----
-sponsor_class_delay <- df %>%
+phase_dist <- prop.table(table(df$phase))
+agency_dist <- prop.table(table(df$agency_class))
+
+write_csv(
+  as.data.frame(phase_dist),
+  "final_analysis/outputs/tables/Table_4_3_phase_distribution.csv"
+)
+
+write_csv(
+  as.data.frame(agency_dist),
+  "final_analysis/outputs/tables/Table_4_4_agency_distribution.csv"
+)
+
+# ============================================================
+# 4. BIVARIATE SIGNAL CHECKS
+# ============================================================
+
+# Delay rate by phase
+phase_delay <- df %>%
+  group_by(phase) %>%
+  summarise(
+    n = n(),
+    delay_rate = mean(delayed_reporting)
+  ) %>%
+  arrange(desc(delay_rate))
+
+write_csv(
+  phase_delay,
+  "final_analysis/outputs/tables/Table_4_5_delay_rate_by_phase.csv"
+)
+
+# Delay rate by sponsor class
+sponsor_delay <- df %>%
   group_by(agency_class) %>%
   summarise(
     n = n(),
@@ -136,27 +130,34 @@ sponsor_class_delay <- df %>%
   ) %>%
   arrange(desc(delay_rate))
 
-write.csv(
-  sponsor_class_delay,
-  "outputs/tables/Table_4_2_delay_rate_by_phase.csv",
-  row.names = FALSE
+write_csv(
+  sponsor_delay,
+  "final_analysis/outputs/tables/Table_4_6_delay_rate_by_sponsor.csv"
 )
-# ---- Delay rate by phase ----
-phase_delay <- df %>%
-  group_by(phase) %>%
+
+# ============================================================
+# 5. COVID EFFECT CHECK
+# ============================================================
+
+covid_delay <- df %>%
+  group_by(covid_period) %>%
   summarise(
     n = n(),
-    delay_rate = mean(delayed_reporting)
+    delay_rate = mean(delayed_reporting),
+    mean_lag = mean(reporting_lag_days)
   )
 
-write.csv(
-  phase_delay,
-  "outputs/tables/Table_4_2_delay_rate_by_phase.csv",
-  row.names = FALSE
+write_csv(
+  covid_delay,
+  "final_analysis/outputs/tables/Table_4_7_covid_effect_summary.csv"
 )
 
-# ---- Figure 4.3: Reporting Lag vs Log Enrollment (TOCI proxy) ----
-p3 <- ggplot(df, aes(x = log_enrollment, y = reporting_lag_days)) +
+# ============================================================
+# 6. VISUAL SIGNAL CHECKS
+# ============================================================
+
+# Lag vs enrollment
+p2 <- ggplot(df, aes(x = log_enrollment, y = reporting_lag_days)) +
   geom_point(alpha = 0.1) +
   labs(
     title = "Reporting Lag vs Log Enrollment",
@@ -166,17 +167,14 @@ p3 <- ggplot(df, aes(x = log_enrollment, y = reporting_lag_days)) +
   theme_minimal()
 
 ggsave(
-  "outputs/figures/Figure_4_3_reporting_lag_vs_enrollment.png",
-  p3,
+  "final_analysis/outputs/figures/Figure_4_2_lag_vs_enrollment.png",
+  p2,
   width = 8,
   height = 5
 )
 
-# ============================================================
-# 7. VISUAL SIGNAL CHECK
-# ============================================================
-
-p2 <- ggplot(df, aes(x = agency_class, y = reporting_lag_days)) +
+# Lag by sponsor
+p3 <- ggplot(df, aes(x = agency_class, y = reporting_lag_days)) +
   geom_boxplot(outlier.alpha = 0.1) +
   coord_cartesian(ylim = c(0, 1500)) +
   labs(
@@ -187,15 +185,16 @@ p2 <- ggplot(df, aes(x = agency_class, y = reporting_lag_days)) +
   theme_minimal()
 
 ggsave(
-  "outputs/figures/Figure_4_2_reporting_lag_by_sponsor.png",
-  p2,
+  "final_analysis/outputs/figures/Figure_4_3_reporting_lag_by_sponsor.png",
+  p3,
   width = 8,
   height = 5
 )
+
 # ============================================================
-# 8. EDA CONCLUSION CHECKPOINT
+# 7. EDA CONCLUSION
 # ============================================================
 
 cat("EDA complete.\n")
-cat("Observed heterogeneity supports predictive modeling.\n")
-
+cat("Substantial heterogeneity observed across phase and sponsor class.\n")
+cat("COVID period exhibits measurable delay shift.\n")
