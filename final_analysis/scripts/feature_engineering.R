@@ -7,9 +7,9 @@
 #   results reporting delays.
 #
 # Outputs:
-#   1. data/interim/aact_features.csv   (engineered features)
-#   2. data/processed/final_dataset.csv (frozen analysis dataset)
-#
+#   1. data/interim/aact_features.csv
+#   2. data/processed/final_dataset.csv
+#   3. data/processed/pre_covid_dataset.csv
 # ============================================================
 
 # ---- Libraries ----
@@ -24,6 +24,9 @@ raw <- read.csv(
   "data/raw/aact_capstone_raw.csv",
   stringsAsFactors = FALSE
 )
+
+# Safety check
+stopifnot(!any(duplicated(raw$nct_id)))
 
 # ============================================================
 # 2. DATE PARSING
@@ -44,10 +47,8 @@ raw <- raw %>%
 raw <- raw %>%
   mutate(
     reporting_lag_days =
-      as.numeric(
-        results_first_submitted_date -
-          primary_completion_date
-      )
+      as.numeric(results_first_submitted_date -
+                   primary_completion_date)
   )
 
 # ============================================================
@@ -71,14 +72,15 @@ analysis_df <- analysis_df %>%
   )
 
 # ============================================================
-# 6. HANDLE MISSING CATEGORICAL VALUES (UPSTREAM)
+# 6. HANDLE MISSING CATEGORICAL VALUES
 # ============================================================
 
 analysis_df <- analysis_df %>%
   mutate(
     phase = ifelse(is.na(phase), "Unknown", as.character(phase)),
     responsible_party_type =
-      ifelse(is.na(responsible_party_type), "Unknown", as.character(responsible_party_type)),
+      ifelse(is.na(responsible_party_type), "Unknown",
+             as.character(responsible_party_type)),
     
     phase = factor(phase),
     masking = factor(masking),
@@ -97,8 +99,16 @@ analysis_df <- analysis_df %>%
 analysis_df <- analysis_df %>%
   mutate(
     log_enrollment = log1p(enrollment),
-    outcome_complexity = ifelse(num_outcomes > 1, 1, 0),
-    multinational = ifelse(!is.na(country), 1, 0)
+    
+    outcome_complexity =
+      ifelse(is.na(num_outcomes), 0,
+             ifelse(num_outcomes > 1, 1, 0)),
+    
+    multinational =
+      ifelse(is.na(num_countries), 0,
+             ifelse(num_countries > 1, 1, 0)),
+    
+    covid_period = as.numeric(covid_period)
   )
 
 # ============================================================
@@ -121,7 +131,7 @@ analysis_df <- analysis_df %>%
 
 analysis_df <- analysis_df %>%
   mutate(
-    phase = toupper(phase),
+    phase = toupper(as.character(phase)),
     phase = gsub(" ", "", phase),
     
     log_enrollment =
@@ -130,10 +140,12 @@ analysis_df <- analysis_df %>%
              log_enrollment),
     
     outcome_complexity =
-      ifelse(is.na(outcome_complexity), 0, outcome_complexity),
+      ifelse(is.na(outcome_complexity), 0,
+             outcome_complexity),
     
     multinational =
-      ifelse(is.na(multinational), 0, multinational),
+      ifelse(is.na(multinational), 0,
+             multinational),
     
     TOCI =
       as.numeric(phase %in% c("PHASE3", "PHASE4")) +
@@ -143,7 +155,7 @@ analysis_df <- analysis_df %>%
   )
 
 # ============================================================
-# 10. SAVE INTERIM DATASET (OPTIONAL, TRACEABILITY)
+# 10. SAVE INTERIM DATASET
 # ============================================================
 
 interim_df <- analysis_df %>%
@@ -151,6 +163,7 @@ interim_df <- analysis_df %>%
     nct_id,
     reporting_lag_days,
     delayed_reporting,
+    covid_period,
     phase,
     masking,
     allocation,
@@ -183,6 +196,7 @@ final_dataset <- analysis_df %>%
     nct_id,
     reporting_lag_days,
     delayed_reporting,
+    covid_period,
     TOCI,
     SGMP,
     phase,
@@ -201,11 +215,28 @@ write.csv(
 )
 
 # ============================================================
-# 12. FINAL VALIDATION CHECKS
+# 12. CREATE PRE-COVID PRIMARY ANALYSIS DATASET
 # ============================================================
 
-cat("Final dataset rows:", nrow(final_dataset), "\n")
-cat("Missing values by column:\n")
+pre_covid_dataset <- final_dataset %>%
+  filter(covid_period == 0)
+
+write.csv(
+  pre_covid_dataset,
+  "data/processed/pre_covid_dataset.csv",
+  row.names = FALSE
+)
+
+# ============================================================
+# 13. FINAL VALIDATION CHECKS
+# ============================================================
+
+cat("Full dataset rows:", nrow(final_dataset), "\n")
+cat("Pre-COVID dataset rows:", nrow(pre_covid_dataset), "\n")
+
+cat("Missing values (full dataset):\n")
 print(colSums(is.na(final_dataset)))
+
 summary(final_dataset$SGMP)
 summary(final_dataset$TOCI)
+
