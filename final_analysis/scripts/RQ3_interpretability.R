@@ -1,131 +1,99 @@
-#------------------------------------------------------------------------------- 
-# Load Libraries
-#-------------------------------------------------------------------------------
+# ============================================================
+# RQ3 — Interpretability & Governance Translation
+# Governance RF vs Expanded RF
+# ============================================================
 
-library(ranger)
 library(dplyr)
+library(ranger)
 library(readr)
-library(rpart)
-library(rpart.plot)
 
-#------------------------------------------------------------------------------- 
-# Load the final dataset
-#-------------------------------------------------------------------------------
+if (!dir.exists("final_analysis/outputs/tables")) {
+  dir.create("final_analysis/outputs/tables", recursive = TRUE)
+}
 
-final <- read_csv("data/processed/final_dataset.csv")
+# ------------------------------------------------------------
+# Load datasets
+# ------------------------------------------------------------
 
-# Ensure classification target is a factor (CRITICAL FIX)
-final <- final %>%
-  mutate(
-    delayed_reporting_f = factor(
-      delayed_reporting,
-      levels = c(0, 1),
-      labels = c("On-Time", "Delayed")
-    )
-  )
+gov_data  <- read_csv("data/processed/final_dataset.csv", show_col_types = FALSE)
+full_data <- read_csv("data/processed/expanded_dataset.csv", show_col_types = FALSE)
 
-#-------------------------------------------------------------------------------
-# Global Feature Importance (Model-level)
-#-------------------------------------------------------------------------------
+gov_data  <- gov_data  %>% select(-nct_id)
+full_data <- full_data %>% select(-nct_id)
+
+# Convert outcome to factor
+gov_data$delayed_reporting  <- factor(gov_data$delayed_reporting, levels=c(0,1))
+full_data$delayed_reporting <- factor(full_data$delayed_reporting, levels=c(0,1))
 
 set.seed(123)
 
-rf_class <- ranger(
-  delayed_reporting_f ~ TOCI + SGMP,
-  data = final,
+# ============================================================
+# GOVERNANCE-ONLY RF MODEL
+# ============================================================
+
+rf_gov <- ranger(
+  delayed_reporting ~ TOCI + SGMP + covid_period,
+  data = gov_data,
   num.trees = 500,
-  importance = "impurity",
-  probability = TRUE
+  importance = "permutation",
+  probability = TRUE,
+  seed = 123
 )
 
-importance_df <- data.frame(
-  Feature = names(rf_class$variable.importance),
-  Importance = rf_class$variable.importance
+gov_importance <- data.frame(
+  Feature = names(rf_gov$variable.importance),
+  Importance = rf_gov$variable.importance
 ) %>%
   arrange(desc(Importance))
 
 write_csv(
-  importance_df,
-  "outputs/tables/RQ3_Table_R6_Feature_Importance.csv"
+  gov_importance,
+  "final_analysis/outputs/tables/RQ3_Governance_Feature_Importance.csv"
 )
 
-#-------------------------------------------------------------------------------
-# Decision-Tree Surrogate (Human-Readable Rules)
-#-------------------------------------------------------------------------------
+# ============================================================
+# EXPANDED RF MODEL (PRIMARY)
+# ============================================================
 
-# Ensure factor outcome (critical)
-final <- final %>%
-  mutate(
-    delayed_reporting_f = factor(
-      delayed_reporting,
-      levels = c(0, 1),
-      labels = c("On-Time", "Delayed")
-    )
-  )
-
-# Train surrogate decision tree
-tree_surrogate <- rpart(
-  delayed_reporting_f ~ TOCI + SGMP,
-  data = final,
-  method = "class",
-  control = rpart.control(maxdepth = 3, minbucket = 5000)
+rf_full <- ranger(
+  delayed_reporting ~ . - reporting_lag_days,
+  data = full_data,
+  num.trees = 500,
+  importance = "permutation",
+  probability = TRUE,
+  seed = 123
 )
 
-# Optional visualization
-rpart.plot(tree_surrogate)
+full_importance <- data.frame(
+  Feature = names(rf_full$variable.importance),
+  Importance = rf_full$variable.importance
+) %>%
+  arrange(desc(Importance))
 
-# Identify terminal (leaf) nodes
-leaf_nodes <- rownames(
-  tree_surrogate$frame[tree_surrogate$frame$var == "<leaf>", ]
-)
-
-# Extract rule paths
-rule_list <- lapply(leaf_nodes, function(node) {
-  path.rpart(tree_surrogate, nodes = as.numeric(node), print.it = FALSE)
-})
-
-# Build rule table
-rule_table <- data.frame(
-  Rule_ID = paste0("Rule_", seq_along(rule_list)),
-  Rule = sapply(rule_list, function(x) paste(unlist(x), collapse = " AND ")),
-  stringsAsFactors = FALSE
-)
-
-# Extract leaf information
-leaf_info <- tree_surrogate$frame[leaf_nodes, ]
-
-# ------------------------------------------------------------------------------
-# Predicted class (robust)
-# ------------------------------------------------------------------------------
-rule_table$Predicted_Class <- ifelse(
-  leaf_info$yval == 2,
-  "Delayed",
-  "On-Time"
-)
-
-# ------------------------------------------------------------------------------
-# Probability of delayed reporting
-# ------------------------------------------------------------------------------
-rule_table$Probability <- round(
-  leaf_info$yval2[, 5],
-  3
-)
-
-# Save decision rules
 write_csv(
-  rule_table,
-  "outputs/tables/RQ3_Table_R7_Decision_Rules.csv"
+  full_importance,
+  "final_analysis/outputs/tables/RQ3_Expanded_Feature_Importance.csv"
 )
 
-print(rule_table)
+# ============================================================
+# GOVERNANCE VS EXPANDED COMPARISON
+# ============================================================
 
-#-------------------------------------------------------------------------------
-# Risk Tier Construction (Decision-Ready Output)
-#-------------------------------------------------------------------------------
+top_features <- full_importance %>%
+  slice(1:15)
 
-rf_probs <- predict(rf_class, final)$predictions[, "Delayed"]
+write_csv(
+  top_features,
+  "final_analysis/outputs/tables/RQ3_Top15_Features.csv"
+)
 
-final <- final %>%
+# ============================================================
+# RISK TIER CONSTRUCTION
+# ============================================================
+
+rf_probs <- predict(rf_full, full_data)$predictions[,2]
+
+risk_output <- full_data %>%
   mutate(
     delay_risk_prob = rf_probs,
     risk_tier = case_when(
@@ -136,6 +104,8 @@ final <- final %>%
   )
 
 write_csv(
-  final %>% select(nct_id, delay_risk_prob, risk_tier),
-  "outputs/tables/RQ3_Table_R8_Risk_Tiers.csv"
+  risk_output %>% select(delay_risk_prob, risk_tier),
+  "final_analysis/outputs/tables/RQ3_Risk_Tiers.csv"
 )
+
+cat("\nRQ3 Interpretability Analysis Complete.\n")
