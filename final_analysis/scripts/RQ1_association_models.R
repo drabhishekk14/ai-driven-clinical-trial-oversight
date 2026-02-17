@@ -1,7 +1,7 @@
-# ============================================================
+# ======================================================================
 # RQ1 — Association Analysis
-# Primary (Pre-COVID) + Sensitivity (Full Sample)
-# ============================================================
+# Primary (Pre-COVID) + Sensitivity (Full Sample)+Inferential Statistics
+# ======================================================================
 
 library(dplyr)
 library(survival)
@@ -51,11 +51,19 @@ write_csv(
   "final_analysis/outputs/tables/RQ1_Table_R1_Descriptives_Full.csv"
 )
 
-# ============================================================
-# PRIMARY MODEL — PRE-COVID
-# ============================================================
+library(dplyr)
+library(survival)
+library(broom)
+library(readr)
+library(tibble)
 
-# Logistic Regression (Pre-COVID)
+# ------------------------------------------------------------
+# PRIMARY MODEL — PRE-COVID
+# ------------------------------------------------------------
+
+# =========================
+# 1️ Logistic Regression
+# =========================
 
 logit_primary <- glm(
   delayed_reporting ~ TOCI + SGMP,
@@ -63,6 +71,7 @@ logit_primary <- glm(
   family = binomial
 )
 
+# Odds Ratios table
 RQ1_logit_primary <- tidy(
   logit_primary,
   exponentiate = TRUE,
@@ -81,13 +90,41 @@ write_csv(
   "final_analysis/outputs/tables/RQ1_Table_R2_Logistic_Primary_PreCOVID.csv"
 )
 
-# Cox Model (Pre-COVID)
+# =========================
+# Wald Test — Logistic
+# =========================
+
+wald_logit_primary <- summary(logit_primary)$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Predictor") %>%
+  mutate(
+    Wald_Z = Estimate / `Std. Error`,
+    Wald_ChiSq = Wald_Z^2
+  ) %>%
+  select(
+    Predictor,
+    Estimate,
+    `Std. Error`,
+    Wald_Z,
+    Wald_ChiSq,
+    `Pr(>|z|)`
+  )
+
+write_csv(
+  wald_logit_primary,
+  "final_analysis/outputs/tables/RQ1_Table_R2A_Wald_Logistic_Primary.csv"
+)
+
+# =========================
+# 2️ Cox Proportional Hazards
+# =========================
 
 cox_primary <- coxph(
   Surv(reporting_lag_days, delayed_reporting) ~ TOCI + SGMP,
   data = pre_covid_data
 )
 
+# Hazard Ratio table
 RQ1_cox_primary <- tidy(
   cox_primary,
   exponentiate = TRUE,
@@ -106,11 +143,53 @@ write_csv(
   "final_analysis/outputs/tables/RQ1_Table_R3_Cox_Primary_PreCOVID.csv"
 )
 
-# ============================================================
-# SENSITIVITY MODEL — FULL SAMPLE + COVID CONTROL
-# ============================================================
+# =========================
+# Wald Test — Cox
+# =========================
 
-# Logistic Regression (Full + COVID)
+wald_cox_primary <- summary(cox_primary)$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Predictor") %>%
+  mutate(
+    Wald_Z = coef / `se(coef)`,
+    Wald_ChiSq = Wald_Z^2
+  ) %>%
+  select(
+    Predictor,
+    coef,
+    `se(coef)`,
+    Wald_Z,
+    Wald_ChiSq,
+    `Pr(>|z|)`
+  )
+
+write_csv(
+  wald_cox_primary,
+  "final_analysis/outputs/tables/RQ1_Table_R3A_Wald_Cox_Primary.csv"
+)
+
+# ------------------------------------------------------------
+# Proportional Hazards Test — Pre-COVID
+# ------------------------------------------------------------
+
+ph_test_primary <- cox.zph(cox_primary)
+
+print(ph_test_primary)
+
+# Optional: Save to CSV
+write.csv(
+  as.data.frame(ph_test_primary$table),
+  "final_analysis/outputs/tables/RQ1_Table_R3B_PH_Test_Primary.csv"
+)
+
+
+# ------------------------------------------------------------
+# SENSITIVITY MODEL — FULL SAMPLE + COVID CONTROL
+# ------------------------------------------------------------
+
+# =========================
+# 3 Logistic Regression
+# =========================
 
 logit_sensitivity <- glm(
   delayed_reporting ~ TOCI + SGMP + covid_period,
@@ -136,7 +215,34 @@ write_csv(
   "final_analysis/outputs/tables/RQ1_Table_R4_Logistic_Sensitivity_Full.csv"
 )
 
-# Cox Model (Full + COVID)
+# ===========================
+# Wald — Logistic Sensitivity
+# ===========================
+
+wald_logit_sensitivity <- summary(logit_sensitivity)$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Predictor") %>%
+  mutate(
+    Wald_Z = Estimate / `Std. Error`,
+    Wald_ChiSq = Wald_Z^2
+  ) %>%
+  select(
+    Predictor,
+    Estimate,
+    `Std. Error`,
+    Wald_Z,
+    Wald_ChiSq,
+    `Pr(>|z|)`
+  )
+
+write_csv(
+  wald_logit_sensitivity,
+  "final_analysis/outputs/tables/RQ1_Table_R4A_Wald_Logistic_Sensitivity.csv"
+)
+
+# =========================
+# 4 Cox Sensitivity
+# =========================
 
 cox_sensitivity <- coxph(
   Surv(reporting_lag_days, delayed_reporting) ~ TOCI + SGMP + covid_period,
@@ -161,4 +267,98 @@ write_csv(
   "final_analysis/outputs/tables/RQ1_Table_R5_Cox_Sensitivity_Full.csv"
 )
 
-cat("\nRQ1 Primary and Sensitivity analyses complete.\n")
+# =======================
+# Wald — Cox Sensitivity
+# =======================
+
+wald_cox_sensitivity <- summary(cox_sensitivity)$coefficients %>%
+  as.data.frame() %>%
+  rownames_to_column("Predictor") %>%
+  mutate(
+    Wald_Z = coef / `se(coef)`,
+    Wald_ChiSq = Wald_Z^2
+  ) %>%
+  select(
+    Predictor,
+    coef,
+    `se(coef)`,
+    Wald_Z,
+    Wald_ChiSq,
+    `Pr(>|z|)`
+  )
+
+write_csv(
+  wald_cox_sensitivity,
+  "final_analysis/outputs/tables/RQ1_Table_R5A_Wald_Cox_Sensitivity.csv"
+)
+
+# ------------------------------------------------------------
+# Proportional Hazards Test — Sensitivity
+# ------------------------------------------------------------
+
+ph_test_sensitivity <- cox.zph(cox_sensitivity)
+
+print(ph_test_sensitivity)
+
+write.csv(
+  as.data.frame(ph_test_sensitivity$table),
+  "final_analysis/outputs/tables/RQ1_Table_R5B_PH_Test_Sensitivity.csv"
+)
+
+#-------------------------------------------------------------------------------
+# Create SGMP Groups (Quartiles)
+#-------------------------------------------------------------------------------
+
+full_data <- full_data %>%
+  mutate(
+    SGMP_group = ntile(SGMP, 4)
+  )
+
+#-------------------------------------------------------------------------------
+# Summary Statistics by SGMP Group
+#-------------------------------------------------------------------------------
+
+sgmp_summary <- full_data %>%
+  group_by(SGMP_group) %>%
+  summarise(
+    n = n(),
+    mean_lag = mean(reporting_lag_days),
+    median_lag = median(reporting_lag_days),
+    pct_delayed = mean(delayed_reporting) * 100
+  )
+
+print(sgmp_summary)
+
+write_csv(
+  sgmp_summary,
+  "final_analysis/outputs/tables/RQ1_Table_R6_SGMP_Lag_Distribution.csv"
+)
+#-------------------------------------------------------------------------------
+# Visualize Distribution (Boxplot)
+#-------------------------------------------------------------------------------
+
+library(ggplot2)
+
+ggplot(full_data, aes(x = factor(SGMP_group), y = reporting_lag_days)) +
+  geom_boxplot() +
+  labs(
+    x = "SGMP Quartile",
+    y = "Reporting Lag (Days)",
+    title = "Distribution of Reporting Lag by SGMP Quartile"
+  )
+
+
+
+#-------------------------------------------------------------------------------
+# Significance Testing
+#-------------------------------------------------------------------------------
+
+print(RQ1_logit_primary)
+print(RQ1_cox_primary)
+
+print(RQ1_logit_sensitivity)
+print(RQ1_cox_sensitivity)
+
+
+cat("\nRQ1 Association Models with Wald tests completed.\n")
+

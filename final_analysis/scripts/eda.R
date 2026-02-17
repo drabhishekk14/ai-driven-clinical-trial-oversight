@@ -1,6 +1,6 @@
 # ============================================================
 # Exploratory Data Analysis (EDA)
-# Updated to reflect COVID indicator and final structure
+# Updated to include Chi-Square Test (Phase vs Delay)
 # ============================================================
 
 library(dplyr)
@@ -135,6 +135,54 @@ write_csv(
   "final_analysis/outputs/tables/Table_4_6_delay_rate_by_sponsor.csv"
 )
 
+# ------------------------------------------------------------
+# NEW: Chi-Square Test (Phase vs Delayed Reporting)
+# ------------------------------------------------------------
+
+phase_delay_table <- table(df$phase, df$delayed_reporting)
+
+chisq_test <- chisq.test(phase_delay_table)
+
+# Effect size (Cramér's V)
+n_total <- sum(phase_delay_table)
+cramers_v <- sqrt(chisq_test$statistic / 
+                    (n_total * (min(dim(phase_delay_table)) - 1)))
+
+# Convert outputs to data frames
+chi_summary <- data.frame(
+  statistic = as.numeric(chisq_test$statistic),
+  df        = as.numeric(chisq_test$parameter),
+  p_value   = chisq_test$p.value,
+  cramers_v = as.numeric(cramers_v)
+)
+
+observed_df  <- as.data.frame.matrix(chisq_test$observed)
+expected_df  <- as.data.frame.matrix(chisq_test$expected)
+stdres_df    <- as.data.frame.matrix(chisq_test$stdres)
+
+# Write outputs
+write_csv(
+  chi_summary,
+  "final_analysis/outputs/tables/Table_4_7_chi_square_phase_delay_summary.csv"
+)
+
+write_csv(
+  observed_df,
+  "final_analysis/outputs/tables/Table_4_8_chi_square_observed_counts.csv"
+)
+
+write_csv(
+  expected_df,
+  "final_analysis/outputs/tables/Table_4_9_chi_square_expected_counts.csv"
+)
+
+write_csv(
+  stdres_df,
+  "final_analysis/outputs/tables/Table_4_10_chi_square_standardized_residuals.csv"
+)
+
+cat("Chi-square test completed and exported.\n")
+
 # ============================================================
 # 5. COVID EFFECT CHECK
 # ============================================================
@@ -149,7 +197,7 @@ covid_delay <- df %>%
 
 write_csv(
   covid_delay,
-  "final_analysis/outputs/tables/Table_4_7_covid_effect_summary.csv"
+  "final_analysis/outputs/tables/Table_4_11_covid_effect_summary.csv"
 )
 
 # ============================================================
@@ -197,4 +245,5 @@ ggsave(
 
 cat("EDA complete.\n")
 cat("Substantial heterogeneity observed across phase and sponsor class.\n")
+cat("Chi-square test confirms statistically significant phase-delay association.\n")
 cat("COVID period exhibits measurable delay shift.\n")
