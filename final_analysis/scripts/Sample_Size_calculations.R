@@ -67,21 +67,20 @@ rq3_power <- pwr.f2.test(
 N_rq3 <- ceiling(rq3_power$v + num_predictors_rq3 + 1)
 
 # ==========================================================
-# RQ4 — Two-Proportion Test
+# RQ4 — Chi-Square Test of Independence
 # ==========================================================
 
-p1 <- 0.50
-p2 <- 0.30
+# Medium effect size (Cohen’s w ≈ 0.30)
+effect_size_w <- 0.30
 
-effect_size_rq4 <- ES.h(p1, p2)
-
-rq4_power <- pwr.2p.test(
-  h = effect_size_rq4,
+rq4_power <- pwr.chisq.test(
+  w = effect_size_w,
+  df = 2,            # (3 tiers - 1)*(2 outcomes - 1) = 2
   sig.level = alpha,
   power = power_target
 )
 
-N_rq4 <- ceiling(2 * rq4_power$n)
+N_rq4 <- ceiling(rq4_power$N)
 
 # ==========================================================
 # Final Summary Table
@@ -92,8 +91,8 @@ summary_table <- data.frame(
   Model_Test = c(
     "Logistic Regression (EPV=10)",
     paste0("ROC AUC Test (Expected AUC=", expected_auc, ")"),
-    "Multiple Linear Regression (f²=0.15)",
-    "Two-Proportion Test (50% vs 30%)"
+    "Linear Regression (f²=0.15)",
+    "Chi-Square Test (Risk Tier × Delay)"
   ),
   Minimum_Sample_Size = c(N_rq1, N_rq2, N_rq3, N_rq4)
 )
