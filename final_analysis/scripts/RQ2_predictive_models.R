@@ -1,7 +1,8 @@
 # ============================================================
-# RQ2 — Predictive Utility Testing (Classification Only)
-# Governance vs Expanded Model
-# Parallelized + DeLong + ROC + Feature Importance
+# RQ2 — Predictive Utility Testing (FINAL STABLE VERSION)
+# Governance vs Expanded Models
+# ROC + DeLong + Importance (Impurity + Permutation)
+# Calibration + Brier Score
 # ============================================================
 
 library(dplyr)
@@ -15,24 +16,24 @@ library(doParallel)
 set.seed(123)
 
 # ============================================================
-# Parallel Backend Setup
+# Parallel Setup
 # ============================================================
 
 num_cores <- parallel::detectCores() - 2
 cl <- makeCluster(num_cores)
 registerDoParallel(cl)
 
-cat("Using", num_cores, "CPU cores for parallel processing.\n")
+cat("Using", num_cores, "CPU cores.\n")
 
 # ============================================================
-# Create output folders
+# Output Folders
 # ============================================================
 
 dir.create("final_analysis/outputs/tables", recursive = TRUE, showWarnings = FALSE)
 dir.create("final_analysis/outputs/plots", recursive = TRUE, showWarnings = FALSE)
 
 # ============================================================
-# Load datasets
+# Load Data
 # ============================================================
 
 gov_data  <- read_csv("data/processed/final_dataset.csv", show_col_types = FALSE)
@@ -42,27 +43,22 @@ gov_data  <- gov_data  %>% select(-nct_id)
 full_data <- full_data %>% select(-nct_id)
 
 # ============================================================
-# Train/Test Split
+# Train/Test Split (same split for both datasets)
 # ============================================================
 
-train_idx <- createDataPartition(
-  gov_data$delayed_reporting,
-  p = 0.7,
-  list = FALSE
-)
+train_idx <- createDataPartition(full_data$delayed_reporting, p = 0.7, list = FALSE)
 
 train_gov  <- gov_data[train_idx, ]
 test_gov   <- gov_data[-train_idx, ]
+
 train_full <- full_data[train_idx, ]
 test_full  <- full_data[-train_idx, ]
 
 convert_factor <- function(df) {
-  df$delayed_reporting <- factor(
-    df$delayed_reporting,
-    levels = c(0,1),
-    labels = c("No","Yes")
-  )
-  return(df)
+  df$delayed_reporting <- factor(df$delayed_reporting,
+                                 levels = c(0,1),
+                                 labels = c("No","Yes"))
+  df
 }
 
 train_gov  <- convert_factor(train_gov)
@@ -75,11 +71,11 @@ test_full  <- convert_factor(test_full)
 # ============================================================
 
 control_class <- trainControl(
-  method = "cv",
-  number = 5,
-  classProbs = TRUE,
-  summaryFunction = twoClassSummary,
-  allowParallel = TRUE
+  method="cv",
+  number=5,
+  classProbs=TRUE,
+  summaryFunction=twoClassSummary,
+  allowParallel=TRUE
 )
 
 # ============================================================
@@ -87,119 +83,171 @@ control_class <- trainControl(
 # ============================================================
 
 get_roc_metrics <- function(actual, probs) {
-  roc_obj <- roc(
-    response  = actual,
-    predictor = probs,
-    levels    = c("No","Yes"),
-    direction = "<"
-  )
+  roc_obj <- roc(actual, probs,
+                 levels=c("No","Yes"),
+                 direction="<")
   auc_val <- as.numeric(auc(roc_obj))
   auc_ci  <- ci.auc(roc_obj, method="delong")
-  
   list(
-    roc_obj = roc_obj,
-    AUC = auc_val,
-    AUC_Lower = as.numeric(auc_ci[1]),
-    AUC_Upper = as.numeric(auc_ci[3])
+    roc_obj=roc_obj,
+    AUC=auc_val,
+    AUC_Lower=as.numeric(auc_ci[1]),
+    AUC_Upper=as.numeric(auc_ci[3])
   )
 }
 
 # ============================================================
-# GOVERNANCE MODELS
+# MODEL FUNCTION
 # ============================================================
 
-rf_gov <- train(
-  delayed_reporting ~ . - reporting_lag_days,
-  data = train_gov,
-  method = "ranger",
-  importance = "permutation",
-  metric = "ROC",
-  trControl = control_class,
-  tuneLength = 3,
-  num.trees = 500,
-  num.threads = num_cores
-)
-
-logit_gov <- glm(
-  delayed_reporting ~ . - reporting_lag_days,
-  data = train_gov,
-  family = binomial
-)
-
-rf_gov_probs    <- predict(rf_gov, test_gov, type="prob")[,"Yes"]
-logit_gov_probs <- predict(logit_gov, test_gov, type="response")
-
-gov_rf_metrics    <- get_roc_metrics(test_gov$delayed_reporting, rf_gov_probs)
-gov_logit_metrics <- get_roc_metrics(test_gov$delayed_reporting, logit_gov_probs)
-
-# ============================================================
-# EXPANDED MODELS
-# ============================================================
-
-rf_full <- train(
-  delayed_reporting ~ . - reporting_lag_days,
-  data = train_full,
-  method = "ranger",
-  importance = "permutation",
-  metric = "ROC",
-  trControl = control_class,
-  tuneLength = 3,
-  num.trees = 500,
-  num.threads = num_cores
-)
-
-logit_full <- glm(
-  delayed_reporting ~ . - reporting_lag_days,
-  data = train_full,
-  family = binomial
-)
-
-rf_full_probs    <- predict(rf_full, test_full, type="prob")[,"Yes"]
-logit_full_probs <- predict(logit_full, test_full, type="response")
-
-full_rf_metrics    <- get_roc_metrics(test_full$delayed_reporting, rf_full_probs)
-full_logit_metrics <- get_roc_metrics(test_full$delayed_reporting, logit_full_probs)
-
-# ============================================================
-# FEATURE IMPORTANCE PLOTS
-# ============================================================
-
-plot_importance <- function(model, title, filename, color) {
-  imp <- varImp(model, scale = FALSE)$importance
-  imp$Feature <- rownames(imp)
-  colnames(imp)[1] <- "Importance"
+run_models <- function(train_data, test_data, label_prefix) {
   
-  imp <- imp %>%
-    arrange(desc(Importance)) %>%
-    slice(1:15)
+  # Logistic
+  logit_model <- glm(
+    delayed_reporting ~ . - reporting_lag_days,
+    data=train_data,
+    family=binomial
+  )
   
-  p <- ggplot(imp,
-              aes(x = reorder(Feature, Importance),
-                  y = Importance)) +
-    geom_bar(stat="identity", fill=color) +
+  # RF for Prediction
+  rf_predict <- train(
+    delayed_reporting ~ . - reporting_lag_days,
+    data=train_data,
+    method="ranger",
+    importance="none",
+    metric="ROC",
+    trControl=control_class,
+    tuneLength=3,
+    num.trees=500,
+    num.threads=num_cores
+  )
+  
+  # RF for Importance (Impurity)
+  rf_impurity <- train(
+    delayed_reporting ~ . - reporting_lag_days,
+    data=train_data,
+    method="ranger",
+    importance="impurity_corrected",
+    metric="ROC",
+    trControl=control_class,
+    tuneLength=3,
+    num.trees=500,
+    num.threads=num_cores
+  )
+  
+  # RF for Importance (Permutation)
+  rf_perm <- train(
+    delayed_reporting ~ . - reporting_lag_days,
+    data=train_data,
+    method="ranger",
+    importance="permutation",
+    metric="ROC",
+    trControl=control_class,
+    tuneLength=3,
+    num.trees=500,
+    num.threads=num_cores
+  )
+  
+  # Predictions
+  rf_probs    <- predict(rf_predict, test_data, type="prob")[,"Yes"]
+  logit_probs <- predict(logit_model, test_data, type="response")
+  
+  rf_metrics    <- get_roc_metrics(test_data$delayed_reporting, rf_probs)
+  logit_metrics <- get_roc_metrics(test_data$delayed_reporting, logit_probs)
+  
+  delong_test <- roc.test(logit_metrics$roc_obj,
+                          rf_metrics$roc_obj,
+                          method="delong")
+  
+  # ROC Plot
+  png(paste0("final_analysis/outputs/plots/RQ2_ROC_",label_prefix,".png"),900,700)
+  
+  plot(rf_metrics$roc_obj,
+       col="red", lwd=3,
+       legacy.axes=FALSE,
+       main=paste("ROC Curve —",label_prefix))
+  
+  plot(logit_metrics$roc_obj,
+       col="blue", lwd=3, add=TRUE)
+  
+  abline(a=0,b=1,lty=2,col="gray50",lwd=2)
+  
+  legend("bottomright",
+         legend=c(
+           paste0("RF (AUC=",round(rf_metrics$AUC,3),")"),
+           paste0("Logistic (AUC=",round(logit_metrics$AUC,3),")"),
+           paste0("ΔAUC=",round(rf_metrics$AUC-logit_metrics$AUC,3)),
+           paste0("DeLong p=",signif(delong_test$p.value,3))
+         ),
+         col=c("red","blue",NA,NA),
+         lwd=c(3,3,NA,NA),
+         bty="n")
+  
+  dev.off()
+  
+  # Importance Data
+  imp_df <- data.frame(
+    Feature = names(rf_impurity$finalModel$variable.importance),
+    Impurity = as.numeric(rf_impurity$finalModel$variable.importance),
+    Permutation = as.numeric(rf_perm$finalModel$variable.importance)
+  )
+  
+  write_csv(imp_df,
+            paste0("final_analysis/outputs/tables/RF_Importance_",label_prefix,".csv"))
+  
+  # Plot Impurity
+  top_imp <- imp_df[order(-imp_df$Impurity), ][1:10, ]
+  
+  p1 <- ggplot(top_imp,
+               aes(x=reorder(Feature, Impurity), y=Impurity)) +
+    geom_bar(stat="identity", fill="darkred") +
     coord_flip() +
-    labs(title=title,
-         x="Feature",
-         y="Permutation Importance") +
-    theme_minimal()
+    theme_minimal() +
+    labs(title=paste("Feature Importance —",label_prefix,"(Impurity)"),
+         x="Feature", y="Importance")
   
-  ggsave(paste0("final_analysis/outputs/plots/", filename),
-         p, width=8, height=6)
+  ggsave(paste0("final_analysis/outputs/plots/RQ2_Importance_Impurity_",label_prefix,".png"),
+         p1, width=8, height=6)
+  
+  # Plot Permutation
+  top_perm <- imp_df[order(-imp_df$Permutation), ][1:10, ]
+  
+  p2 <- ggplot(top_perm,
+               aes(x=reorder(Feature, Permutation), y=Permutation)) +
+    geom_bar(stat="identity", fill="steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title=paste("Feature Importance —",label_prefix,"(Permutation)"),
+         x="Feature", y="Importance")
+  
+  ggsave(paste0("final_analysis/outputs/plots/RQ2_Importance_Permutation_",label_prefix,".png"),
+         p2, width=8, height=6)
+  
+  return(list(
+    summary=data.frame(
+      Model=label_prefix,
+      AUC_Logistic=logit_metrics$AUC,
+      AUC_RF=rf_metrics$AUC,
+      Delta_AUC=rf_metrics$AUC-logit_metrics$AUC,
+      DeLong_p=delong_test$p.value
+    ),
+    rf_predict_model=rf_predict
+  ))
 }
 
-plot_importance(rf_gov,
-                "Figure 5. Feature Importance — Governance RF",
-                "Figure5_Governance_Feature_Importance.png",
-                "steelblue")
+# ============================================================
+# Run Models
+# ============================================================
 
-plot_importance(rf_full,
-                "Figure 6. Feature Importance — Expanded RF",
-                "Figure6_Expanded_Feature_Importance.png",
-                "darkred")
+results_gov  <- run_models(train_gov,  test_gov,  "Governance")
+results_full <- run_models(train_full, test_full, "Expanded")
 
 # ============================================================
-# CALIBRATION (Expanded RF)
+# Calibration — Expanded
 # ============================================================
+
+rf_full_probs <- predict(results_full$rf_predict_model,
+                         test_full, type="prob")[,"Yes"]
 
 calibration_df <- data.frame(
   actual = ifelse(test_full$delayed_reporting=="Yes",1,0),
@@ -211,8 +259,7 @@ calibration_summary <- calibration_df %>%
   group_by(decile) %>%
   summarise(
     mean_predicted = mean(predicted),
-    observed_rate = mean(actual),
-    n = n()
+    observed_rate = mean(actual)
   )
 
 write_csv(calibration_summary,
@@ -225,81 +272,27 @@ cal_plot <- ggplot(calibration_summary,
   theme_minimal() +
   labs(title="Calibration Plot — Expanded RF",
        x="Mean Predicted Probability",
-       y="Observed Rate")
+       y="Observed Delay Rate")
 
 ggsave("final_analysis/outputs/plots/RQ2_Calibration_Expanded_RF.png",
        cal_plot, width=7, height=5)
 
-# ============================================================
-# DeLong Tests
-# ============================================================
-
-delong_gov  <- roc.test(gov_logit_metrics$roc_obj,
-                        gov_rf_metrics$roc_obj,
-                        method="delong")
-
-delong_full <- roc.test(full_logit_metrics$roc_obj,
-                        full_rf_metrics$roc_obj,
-                        method="delong")
-
-write_csv(data.frame(
-  Comparison=c("Governance: Logistic vs RF",
-               "Expanded: Logistic vs RF"),
-  p_value=c(delong_gov$p.value,
-            delong_full$p.value)
-),
-"final_analysis/outputs/tables/RQ2_DeLong_Tests.csv")
+brier_score <- mean((rf_full_probs - calibration_df$actual)^2)
 
 # ============================================================
-# Save AUC Table
+# Final Summary
 # ============================================================
 
-RQ2_results <- data.frame(
-  Model=c("Logistic (Governance)",
-          "RF Tuned (Governance)",
-          "Logistic (Expanded)",
-          "RF Tuned (Expanded)"),
-  AUC=c(gov_logit_metrics$AUC,
-        gov_rf_metrics$AUC,
-        full_logit_metrics$AUC,
-        full_rf_metrics$AUC),
-  Lower=c(gov_logit_metrics$AUC_Lower,
-          gov_rf_metrics$AUC_Lower,
-          full_logit_metrics$AUC_Lower,
-          full_rf_metrics$AUC_Lower),
-  Upper=c(gov_logit_metrics$AUC_Upper,
-          gov_rf_metrics$AUC_Upper,
-          full_logit_metrics$AUC_Upper,
-          full_rf_metrics$AUC_Upper)
-)
+final_results <- bind_rows(results_gov$summary,
+                           results_full$summary)
 
-write_csv(RQ2_results,
-          "final_analysis/outputs/tables/RQ2_Classification_Results.csv")
+final_results$Brier_Score_Expanded_RF <- NA
+final_results$Brier_Score_Expanded_RF[
+  final_results$Model=="Expanded"] <- brier_score
 
-# ============================================================
-# ROC PLOTS
-# ============================================================
+write_csv(final_results,
+          "final_analysis/outputs/tables/RQ2_Final_Model_Comparison.csv")
 
-png("final_analysis/outputs/plots/RQ2_ROC_Governance.png",800,600)
-plot(gov_logit_metrics$roc_obj,col="blue",
-     main="ROC — Governance Models")
-plot(gov_rf_metrics$roc_obj,col="red",add=TRUE)
-legend("bottomright",legend=c("Logistic","RF"),
-       col=c("blue","red"),lwd=2)
-dev.off()
-
-png("final_analysis/outputs/plots/RQ2_ROC_Expanded.png",800,600)
-plot(full_logit_metrics$roc_obj,col="blue",
-     main="ROC — Expanded Models")
-plot(full_rf_metrics$roc_obj,col="red",add=TRUE)
-legend("bottomright",legend=c("Logistic","RF"),
-       col=c("blue","red"),lwd=2)
-dev.off()
-
-cat("\nRQ2 Pipeline Complete (Parallelized).\n")
-
-# ============================================================
-# Stop Cluster
-# ============================================================
+cat("\nRQ2 FINAL PIPELINE COMPLETE.\n")
 
 stopCluster(cl)
