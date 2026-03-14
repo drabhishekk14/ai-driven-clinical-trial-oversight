@@ -1,0 +1,42 @@
+[2026-03-14 13:31:51.292836] Starting Capstone Pipeline
+[2026-03-14 13:31:51.335006] Running: R/connect_aact.R
+[2026-03-14 13:31:51.355281] Completed: R/connect_aact.R
+[2026-03-14 13:31:51.37004] Running: R/extract_aact_final.R
+[2026-03-14 13:31:56.379345] ERROR in: R/extract_aact_final.R
+[2026-03-14 13:31:56.379822] Message: bad_weak_ptr
+[2026-03-14 13:45:18.56644] Starting Capstone Pipeline
+[2026-03-14 13:45:18.592787] Running: R/connect_aact.R
+[2026-03-14 13:45:18.595789] Completed: R/connect_aact.R | Runtime: 0 seconds
+[2026-03-14 13:45:18.598133] Running: R/extract_aact_final.R
+[2026-03-14 13:45:21.543573] ERROR in: R/extract_aact_final.R
+[2026-03-14 13:45:21.544111] Message: bad_weak_ptr
+[2026-03-14 13:53:04.628953] Starting Capstone Pipeline
+[2026-03-14 13:53:04.647578] Running: R/connect_aact.R
+[2026-03-14 13:53:04.649002] Completed: R/connect_aact.R | Runtime: 0 seconds
+[2026-03-14 13:53:04.649436] Running: R/extract_aact_final.R
+[2026-03-14 13:53:21.573182] Completed: R/extract_aact_final.R | Runtime: 16.92 seconds
+[2026-03-14 13:53:21.573887] Running: final_analysis/scripts/feature_engineering_sponsor_history_final.R
+[2026-03-14 13:53:34.229055] Completed: final_analysis/scripts/feature_engineering_sponsor_history_final.R | Runtime: 12.65 seconds
+[2026-03-14 13:53:34.229828] Running: final_analysis/scripts/EDA_final_report.R
+[2026-03-14 13:53:47.251504] Completed: final_analysis/scripts/EDA_final_report.R | Runtime: 13.02 seconds
+[2026-03-14 13:53:47.252167] Running: final_analysis/scripts/sample_size_calculations.R
+[2026-03-14 13:53:47.352437] Completed: final_analysis/scripts/sample_size_calculations.R | Runtime: 0.1 seconds
+[2026-03-14 13:58:16.715161] Starting Capstone Pipeline
+[2026-03-14 13:58:16.742566] Running: R/connect_aact.R
+[2026-03-14 13:58:16.744506] Completed: R/connect_aact.R | Runtime: 0 seconds
+[2026-03-14 13:58:16.746744] Running: R/extract_aact_final.R
+[2026-03-14 13:58:38.545542] Completed: R/extract_aact_final.R | Runtime: 21.8 seconds
+[2026-03-14 13:58:38.546621] Running: final_analysis/scripts/feature_engineering_sponsor_history_final.R
+[2026-03-14 13:58:43.388455] Completed: final_analysis/scripts/feature_engineering_sponsor_history_final.R | Runtime: 4.84 seconds
+[2026-03-14 13:58:43.38934] Running: final_analysis/scripts/EDA_final_report.R
+[2026-03-14 13:58:54.96563] Completed: final_analysis/scripts/EDA_final_report.R | Runtime: 11.58 seconds
+[2026-03-14 13:58:54.966926] Running: final_analysis/scripts/sample_size_calculations.R
+[2026-03-14 13:58:54.975652] Completed: final_analysis/scripts/sample_size_calculations.R | Runtime: 0.01 seconds
+[2026-03-14 13:58:54.9777] Running: final_analysis/scripts/analysis_modeling_sponsor_history_final_xgb_lgbm.R
+[2026-03-14 14:03:05.595169] Completed: final_analysis/scripts/analysis_modeling_sponsor_history_final_xgb_lgbm.R | Runtime: 250.62 seconds
+[2026-03-14 14:03:05.5961] Running: final_analysis/scripts/RQ3_interpretability_final.R
+[2026-03-14 14:03:37.724722] Completed: final_analysis/scripts/RQ3_interpretability_final.R | Runtime: 32.13 seconds
+[2026-03-14 14:03:37.725932] Running: final_analysis/scripts/RQ4_risk_tier_dashboard_final.R
+[2026-03-14 14:04:04.720477] Completed: final_analysis/scripts/RQ4_risk_tier_dashboard_final.R | Runtime: 26.99 seconds
+[2026-03-14 14:04:04.722049] Pipeline completed successfully
+[2026-03-14 14:04:04.72267] Total runtime: 348 seconds

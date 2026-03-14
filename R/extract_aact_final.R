@@ -2,34 +2,76 @@
 # AACT extraction
 # ============================================================
 
+# Load connection function
 source("R/connect_aact.R")
 
+cat("Starting AACT data extraction...\n")
+
+# ------------------------------------------------------------
 # Connect to database
+# ------------------------------------------------------------
+
 con <- connect_aact()
 
-# Ensure connection closes even if error occurs
-on.exit(DBI::dbDisconnect(con), add = TRUE)
+# ------------------------------------------------------------
+# Load SQL query
+# ------------------------------------------------------------
 
-# Load SQL
 sql_file <- "sql/aact_extract_final.sql"
+
+if (!file.exists(sql_file)) {
+  stop("SQL file not found: ", sql_file)
+}
 
 sql <- readLines(sql_file, warn = FALSE)
 sql <- paste(sql, collapse = "\n")
 
 cat("Running AACT extraction query...\n")
 
+# ------------------------------------------------------------
 # Run query
+# ------------------------------------------------------------
+
 aact_raw <- DBI::dbGetQuery(con, sql)
 
-# Create output directory
-if (!dir.exists("data/raw")) {
-  dir.create("data/raw", recursive = TRUE)
+# ------------------------------------------------------------
+# Close connection safely
+# ------------------------------------------------------------
+
+if (DBI::dbIsValid(con)) {
+  DBI::dbDisconnect(con)
+  cat("Database connection closed.\n")
 }
 
-# Save dataset
-readr::write_csv(
-  aact_raw,
-  "data/raw/aact_capstone_raw_final.csv"
-)
+# ------------------------------------------------------------
+# Create output directory if needed
+# ------------------------------------------------------------
 
-cat("Final AACT extract complete:", nrow(aact_raw), "rows\n")
+output_dir <- "data/raw"
+
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+# ------------------------------------------------------------
+# Save dataset
+# ------------------------------------------------------------
+
+output_file <- file.path(output_dir, "aact_capstone_raw_final.csv")
+
+readr::write_csv(aact_raw, output_file)
+
+# ------------------------------------------------------------
+# Validation checks
+# ------------------------------------------------------------
+
+cat("\nExtraction completed successfully.\n")
+
+cat("Rows extracted:", nrow(aact_raw), "\n")
+cat("Columns extracted:", ncol(aact_raw), "\n")
+
+if ("nct_id" %in% names(aact_raw)) {
+  cat("Unique trials:", length(unique(aact_raw$nct_id)), "\n")
+}
+
+cat("Output saved to:", output_file, "\n")
