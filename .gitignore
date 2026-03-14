@@ -12,6 +12,9 @@ data/raw/*
 data/interim/*
 data/processed/*
 
+# But keep the folder
+!data/raw/.gitkeep
+
 # ---- Outputs ----
 outputs/*
 archive/*
@@ -33,3 +36,4 @@ final_analysis/outputs/*
 
 # Logs
 pipeline_log.txt
+pipeline_checkpoint.txt
