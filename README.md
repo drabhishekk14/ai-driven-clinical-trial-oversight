@@ -1,18 +1,6 @@
-Below is a **clean, complete, ready-to-paste README.md** for your repository.
-It incorporates everything we discussed:
+# AI-Driven Clinical Trial Oversight 
 
-* research framing
-* RQ1–RQ4 alignment
-* Key Findings section
-* methodology diagram placeholder
-* reproducibility guidance
-* repository structure
-
-You can paste this directly into **README.md**.
-
----
-
-# AI-Driven Clinical Trial Oversight
+This project is licensed under the MIT License.
 
 **Predicting and Stratifying Delays in Clinical Trial Results Reporting**
 *An Interpretable Machine Learning Framework for Governance Risk Stratification*
@@ -108,8 +96,7 @@ The analytical workflow combines **statistical modeling, machine learning, inter
 
 The project implements an end-to-end analytical pipeline from registry data extraction to governance-oriented risk stratification.
 
-![Clinical Trial Oversight Pipeline]
-figures\workflow_pipeline.png
+![Clinical Trial Oversight Pipeline](docs\workflow_pipeline.png)
 
 ### Pipeline Stages
 
