@@ -9,10 +9,8 @@
 
 # ---- Data (not versioned) ----
 data/raw/*
-!data/raw/aact_capstone_raw.csv
 data/interim/*
-!data/interim/aact_features.csv
-!data/interim/aact_features_eda.csv
+data/processed/*
 
 # ---- Outputs ----
 outputs/*
@@ -25,4 +23,13 @@ renv/
 desktop.ini
 
 # ---- models ----
-models/*.rds
+*.rds
+
+# Model objects
+*.rds
+
+# Pipeline outputs
+final_analysis/outputs/*
+
+# Logs
+pipeline_log.txt
