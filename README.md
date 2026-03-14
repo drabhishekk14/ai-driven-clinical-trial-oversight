@@ -43,11 +43,11 @@ Convert predicted delay probabilities into **operational risk tiers** supporting
 
 ---
 
-# Key Findings (TL;DR)
+# Key Findings:
 
 • Reporting delays remain common, with substantial variation across sponsor types and trial structures.
 • **Sponsor historical compliance behavior** emerged as the strongest predictor of delay risk.
-• Machine learning models improved predictive discrimination relative to regression baselines (AUC ≈ 0.68).
+• Machine learning models improved predictive discrimination relative to regression baselines (AUC ≈ 0.67).
 • Predicted delay probabilities can be translated into **Low, Moderate, and High governance risk tiers**, enabling proactive oversight of clinical trial reporting compliance.
 
 ---
@@ -366,7 +366,7 @@ Outputs are stored in the `outputs/` or `figures/` directories.
 
 If referencing this work:
 
-**Abhishek Kadam (2026)**
+**Abhishek Vilas Kadam (2026)**
 *Predicting and Stratifying Delays in Clinical Trial Results Reporting:
 An Interpretable Machine Learning Framework for Governance Risk Stratification.*
 
