@@ -1,0 +1,4 @@
+risk_tier,pct_trials,observed_delay_rate
+High,29.24,0.943
+Low,27.66,0.199
+Moderate,43.1,0.589

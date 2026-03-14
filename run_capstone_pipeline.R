@@ -65,7 +65,7 @@ pipeline <- c(
   "final_analysis/scripts/sample_size_calculations.R",
   
   # 04_Modeling (includes RQ1–RQ2)
-  "final_analysis/scripts/analysis_modeling_sponsor_history_final.R",
+  "final_analysis/scripts/analysis_modeling_sponsor_history_final_xgb_lgb.R",
   
   # 05_Interpretability
   "final_analysis/scripts/RQ3_interpretability_final.R",

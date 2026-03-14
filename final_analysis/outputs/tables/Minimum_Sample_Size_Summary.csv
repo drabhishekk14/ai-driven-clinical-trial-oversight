@@ -1,0 +1,5 @@
+"","RQ","Model_Test","Minimum_Sample_Size"
+"1","RQ1","Logistic Regression (EPV=10)",400
+"2","RQ2","ROC AUC Test (Expected AUC=0.65)",725
+"3","RQ3","Linear Regression (f²=0.15)",138
+"4","RQ4","Chi-Square Test (Risk Tier × Delay)",172
