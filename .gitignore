@@ -8,11 +8,15 @@
 .Renviron
 
 # ---- Data (not versioned) ----
-data/raw/
-data/interim/
+data/raw/*
+!data/raw/aact_capstone_raw.csv
+data/interim/*
+!data/interim/aact_features.csv
+!data/interim/aact_features_eda.csv
 
 # ---- Outputs ----
-outputs/
+outputs/*
+archive/*
 
 # ---- renv ----
 renv/
