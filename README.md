@@ -1,14 +1,24 @@
 # AI-Driven Clinical Trial Oversight 
 
-This project is licensed under the MIT License.
+> **AI-Driven Clinical Trial Oversight**  
+> Predicting and stratifying delays in clinical trial results reporting using interpretable machine learning.  
+>
+> **Dataset:** 71,934 ClinicalTrials.gov trials (AACT database)  
+> **Methods:** Logistic regression, Random Forest, XGBoost, LightGBM, explainable ML  
+> **Key result:** Sponsor historical compliance is the dominant predictor of reporting delay risk.
+> **Tech Stack:** R • PostgreSQL • Random Forest • XGBoost • LightGBM • ClinicalTrials.gov
+
 
 **Predicting and Stratifying Delays in Clinical Trial Results Reporting**
 *An Interpretable Machine Learning Framework for Governance Risk Stratification*
+
+This project develops an interpretable machine learning framework for predicting delays in clinical trial results reporting using the ClinicalTrials.gov AACT database. The analysis integrates statistical modeling, ensemble machine learning, and explainable AI to identify governance and operational drivers of reporting delays.
 
 This repository contains the analytical pipeline supporting the capstone research project analyzing delays in clinical trial results reporting using data from **ClinicalTrials.gov**.
 
 The study integrates **statistical inference, machine learning, and explainable analytics** to identify structural and governance drivers of reporting delays and translate predictive outputs into actionable governance risk tiers.
 
+This project is licensed under the MIT License.
 ---
 
 # Research Objectives
@@ -96,7 +106,11 @@ The analytical workflow combines **statistical modeling, machine learning, inter
 
 The project implements an end-to-end analytical pipeline from registry data extraction to governance-oriented risk stratification.
 
-![Clinical Trial Oversight Pipeline](docs\workflow_pipeline.png)
+## Analytical Workflow
+
+<p align="center">
+  <img src="docs/workflow_pipeline.png" width="800">
+</p>
 
 ### Pipeline Stages
 
@@ -227,6 +241,28 @@ AI-Driven-Clinical-Trial-Oversight
 
 ---
 
+## Key Results
+
+Model performance (AUC):
+
+| Model | AUC |
+|------|------|
+| LightGBM | 0.668 |
+| XGBoost | 0.664 |
+| Random Forest (Sponsor) | 0.658 |
+| Logistic Regression (Sponsor) | 0.642 |
+
+Key insight:
+
+Sponsor historical compliance behavior is the strongest predictor of reporting delay risk.
+
+## Model Performance Comparison
+
+<p align="center">
+  <img src="final_analysis\outputs\figures\ROC_All_Models_Comparison.png" width="700">
+</p>
+
+
 # Governance Insight
 
 This project demonstrates how **interpretable machine learning can support proactive oversight of clinical trial reporting compliance**.
@@ -239,6 +275,7 @@ By combining structural trial characteristics with sponsor historical behavior, 
 
 The approach aligns with **Risk-Based Quality Management (RBQM)** principles used in modern clinical research governance.
 
+The model can be finetuned further by augmenting the registry data with sponsor/pharma company specific data (KPIs) to get even better results than the only registry data trained model.
 ---
 
 # Documentation
