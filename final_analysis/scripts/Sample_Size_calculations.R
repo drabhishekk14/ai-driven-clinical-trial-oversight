@@ -15,9 +15,9 @@ z_beta  <- qnorm(power_target)
 # RQ1 — Logistic Regression (EPV Method)
 # ==========================================================
 
-num_predictors_rq1 <- 12
-event_rate <- 0.30
-epv_required <- 10
+num_predictors_rq1 <- 15
+event_rate <- 0.60
+epv_required <- 20
 
 required_events_rq1 <- epv_required * num_predictors_rq1
 N_rq1 <- ceiling(required_events_rq1 / event_rate)
@@ -54,8 +54,8 @@ N_rq2 <- ceiling(n_cases + controls)
 # RQ3 — Linear Regression (pwr.f2.test)
 # ==========================================================
 
-num_predictors_rq3 <- 5
-effect_size_f2 <- 0.15
+num_predictors_rq3 <- 15
+effect_size_f2 <- 0.35
 
 rq3_power <- pwr.f2.test(
   u = num_predictors_rq3,
@@ -71,7 +71,7 @@ N_rq3 <- ceiling(rq3_power$v + num_predictors_rq3 + 1)
 # ==========================================================
 
 # Medium effect size (Cohen’s w ≈ 0.30)
-effect_size_w <- 0.30
+effect_size_w <- 0.50
 
 rq4_power <- pwr.chisq.test(
   w = effect_size_w,
@@ -91,7 +91,7 @@ summary_table <- data.frame(
   Model_Test = c(
     "Logistic Regression (EPV=10)",
     paste0("ROC AUC Test (Expected AUC=", expected_auc, ")"),
-    "Linear Regression (f²=0.15)",
+    "Linear Regression (f²=0.35)",
     "Chi-Square Test (Risk Tier × Delay)"
   ),
   Minimum_Sample_Size = c(N_rq1, N_rq2, N_rq3, N_rq4)

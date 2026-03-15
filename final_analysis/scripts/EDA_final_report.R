@@ -45,12 +45,16 @@ cat("Pre-COVID sample size:", nrow(df_pre_covid), "\n")
 summary(df$reporting_lag_days)
 
 outcome_summary <- data.frame(
-  Metric = c("Min", "Median", "Mean", "Max"),
+  Metric = c("Min", "Q1", "Median", "Mean", "Q3", "Max", "SD", "IQR"),
   Value = c(
-    min(df$reporting_lag_days),
-    median(df$reporting_lag_days),
-    mean(df$reporting_lag_days),
-    max(df$reporting_lag_days)
+    min(df$reporting_lag_days, na.rm = TRUE),
+    quantile(df$reporting_lag_days, 0.25, na.rm = TRUE),
+    median(df$reporting_lag_days, na.rm = TRUE),
+    mean(df$reporting_lag_days, na.rm = TRUE),
+    quantile(df$reporting_lag_days, 0.75, na.rm = TRUE),
+    max(df$reporting_lag_days, na.rm = TRUE),
+    sd(df$reporting_lag_days, na.rm = TRUE),
+    IQR(df$reporting_lag_days, na.rm = TRUE)
   )
 )
 
